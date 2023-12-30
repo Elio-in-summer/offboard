@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/usr/include/**",
+        "/home/up/ws/test_ws/devel/include/**",
+        "/home/up/ws/realsense_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/up/ws/realsense_ws/src/ddynamic_reconfigure/include/**",
+        "/home/up/ws/realsense_ws/src/realsense-ros/realsense2_camera/include/**",
+        "/home/up/ws/test_ws/src/tunnelflight/include/**",
+        "/usr/include/eigen3/**",
+        "/home/up/ws/catkin_ws/devel/include/**",
+        "/home/up/ws/catkin_ws/**",
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-arm64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

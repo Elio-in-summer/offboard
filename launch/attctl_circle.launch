@@ -1,0 +1,15 @@
+<launch>
+	<node name="attctl_circle" pkg="offboard" type="attctl_circle" output="screen">
+		<param name="ctrl_rate" value="50"/>
+		<param name="repeat_path" value="false"/>
+		<param name="hover_height" value="1.0"/>
+		<param name="r_circle" value="1.0"/>
+		<param name="t_total" value="30.0"/>
+	</node>
+
+	<node name="controller_node" pkg="offboard" type="controller_node" output="screen">
+		<rosparam command="load" file="$(find offboard)/cfg/uav.yaml" />
+		<remap from="/mavros/local_position/pose" to = "/mavros/vision_pose/pose"/>
+		<remap from="/mavros/local_position/velocity_local" to = "/hxl_uav/mocap/vel"/>
+	</node>
+</launch>

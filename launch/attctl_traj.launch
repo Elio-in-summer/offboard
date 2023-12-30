@@ -1,0 +1,15 @@
+<launch>
+	<node name="attctl_traj" pkg="offboard" type="attctl_traj" output="screen">
+		<param name="ctrl_rate" value="25"/>
+		<param name="traj_csv_name" value="/cfg/circle_r1m.csv"/>
+		<param name="repeat_path" value="false"/>
+		<param name="hover_height" value="1.0"/>
+		<param name="tf_x" value="0.0"/>
+		<param name="tf_y" value="0.0"/>
+		<param name="tf_z" value="0.0"/>
+	</node>
+
+	<node name="controller_node" pkg="offboard" type="controller_node" output="screen">
+		<rosparam command="load" file="$(find offboard)/cfg/uav.yaml" />
+	</node>
+</launch>

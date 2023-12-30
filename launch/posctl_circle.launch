@@ -1,0 +1,9 @@
+<launch>
+	 <node name="posctl_circle" pkg="offboard" type="posctl_circle" output="screen">
+		<param name="ctrl_rate" value="25"/>
+		<param name="repeat_path" value="false"/>
+		<param name="hover_height" value="0.7"/>
+		<param name="r_circle" value="1.0"/>
+		<param name="t_total" value="40.0"/>
+	</node> 
+</launch>
