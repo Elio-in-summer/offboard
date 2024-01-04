@@ -6,6 +6,8 @@
 #include <DebugPid.h>
 #include <ctime>
 
+#include "controller/FILTER.h"
+
 using namespace Eigen;
 
 #define LOOPRATE 50
@@ -47,7 +49,79 @@ geometry_msgs::Quaternion orientationTarget; // 发给无人机的姿态指令  
 double thrustTarget;                         // 期望油门
 mavros_msgs::AttitudeTarget msgTargetAttitudeThrust;
 
+//加速度滤波
+FILTER ax_sgFilter(51,21,2),ay_sgFilter(51,21,2),az_sgFilter(51,21,2);
+double ax_sg = 0;
+double ay_sg = 0;
+double az_sg = 0;
+ros::Publisher acc_pub;
+geometry_msgs::TwistStamped acc_sg;
+
+//thrust model estimation
+std::queue<std::pair<ros::Time, double>> timed_thrust_;
+double rho2_ = 0.998;
+double P_;
+double thr2acc_;
+
+void resetThrustMapping(void)
+{
+  thr2acc_ = GRAVITATIONAL_ACC / rosParamBaseThrust;
+  P_ = 1e6;
+}
+
+bool estimateThrustModel(const Eigen::Vector3d &est_a)
+{
+  ros::Time t_now = ros::Time::now();
+  while (timed_thrust_.size() >= 1)
+  {
+    // Choose data before 35~45ms ago
+    std::pair<ros::Time, double> t_t = timed_thrust_.front();
+    double time_passed = (t_now - t_t.first).toSec();
+    if (time_passed > 0.045) // 45ms
+    {
+      // printf("continue, time_passed=%f\n", time_passed);
+      timed_thrust_.pop();
+      continue;
+    }
+    if (time_passed < 0.035) // 35ms
+    {
+      // printf("skip, time_passed=%f\n", time_passed);
+      return false;
+    }
+
+    /***********************************************************/
+    /* Recursive least squares algorithm with vanishing memory */
+    /***********************************************************/
+    double thr = t_t.second;
+    timed_thrust_.pop();
+    
+    /***********************************/
+    /* Model: est_a(2) = thr1acc_ * thr */
+    /***********************************/
+    double gamma = 1 / (rho2_ + thr * P_ * thr);
+    double K = gamma * P_ * thr;
+    thr2acc_ = thr2acc_ + K * (est_a.norm() - thr * thr2acc_);
+    P_ = (1 - K * thr) * P_ / rho2_;
+    //printf("%6.3f,%6.3f,%6.3f,%6.3f\n", thr2acc_, gamma, K, P_);
+    //fflush(stdout);
+
+    // debug_msg_.thr2acc = thr2acc_;
+    return true;
+  }
+  return false;
+}
+
+double computeDesiredCollectiveThrustSignal( const Eigen::Vector3d &des_acc )
+{
+  double throttle_percentage(0.0);
+  
+  /* compute throttle, thr2acc has been estimated before */
+  throttle_percentage = des_acc.norm() / thr2acc_;
+
+  return throttle_percentage;
+}
 /**************************** Function Declaration *******************************/
+
 // 回调函数
 void cb_state(const mavros_msgs::State::ConstPtr &msg)
 {
@@ -74,6 +148,32 @@ void cb_target_pva(const offboard::PosVelAcc::ConstPtr &msg)
     droneTargetPVA = *msg;
     targetPoseLastTimeStamp = ros::Time::now().toSec();
 }
+
+void acc_cb(const geometry_msgs::TwistStamped::ConstPtr& msg)
+{
+    double ax = msg->twist.linear.x;
+    double ay = msg->twist.linear.y;
+    double az = msg->twist.linear.z;
+    ax_sg = ax_sgFilter.sgfilter(ax);
+    ay_sg = ay_sgFilter.sgfilter(ay);
+    az_sg = az_sgFilter.sgfilter(az);
+    // pub the sg filtered acc
+    acc_sg.header.stamp = msg->header.stamp;
+    acc_sg.twist.linear.x = ax_sg;
+    acc_sg.twist.linear.y = ay_sg;
+    acc_sg.twist.linear.z = az_sg;
+    acc_pub.publish(acc_sg); 
+
+    Eigen::Vector3d est_a(ax_sg, ay_sg, az_sg);
+    est_a = est_a + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
+    if (estimateThrustModel(est_a))
+    {
+        ROS_INFO("Thr2Acc: %f", thr2acc_);
+    }
+
+}
+
+
 
 /**
  * 将欧拉角转化为四元数, 欧拉角的顺序为Yaw(z)-Pitch(y)-Roll(x)
@@ -131,6 +231,14 @@ tf::StampedTransform get_stamped_transform_from_pose(float x, float y, float z, 
     trans.setOrigin(orig);
     return trans;
 }
+
+
+
+
+
+
+
+
 
 /**
  * @brief 从rosparam中的参数赋给PID
@@ -276,7 +384,8 @@ void px4AttitudeCtlPVA(double _currTime,
     orientationTarget.z = qua_.z();
 
     // TODO:限制总推力
-    thrustTarget = accExcept_g.norm() / GRAVITATIONAL_ACC * (baseThrust); // 目标推力值
+    // thrustTarget = accExcept_g.norm() / GRAVITATIONAL_ACC * (baseThrust); // 目标推力值
+    thrustTarget = computeDesiredCollectiveThrustSignal(accExcept_g);
     // thrustTarget = min(max(thrustTarget, (double)rosParamThrustLimit[0]), (double)rosParamThrustLimit[1]);
 
     msgTargetAttitudeThrust.orientation = orientationTarget;
@@ -348,6 +457,8 @@ int main(int argc, char **argv)
         ROS_WARN_STREAM("The param `ThrustLimit` is unreasonable, EXIT !!!!!!!!");
         return 0;
     }
+    // reset thrust mapping
+    resetThrustMapping();
 
     /// subscriber
     ros::Subscriber subState = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &cb_state);
@@ -355,9 +466,12 @@ int main(int argc, char **argv)
     // ros::Subscriber subLocalVel = nh.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 1, &cb_vel);
     ros::Subscriber subOdom = nh.subscribe<nav_msgs::Odometry>("mavros/vision_pose/odom", 1, &cb_odom);
     ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva);
+    ros::Subscriber acc_sub = nh.subscribe<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc", 10, acc_cb);
+    
     /// publisher
     ros::Publisher pubPx4Attitude = nh.advertise<mavros_msgs::AttitudeTarget>("mavros/setpoint_raw/attitude", 1);
     ros::Publisher pubDroneTargetEulerThrust = nh.advertise<geometry_msgs::PoseStamped>("controller/drone_target_euler_thrust", 1);
+    acc_pub = nh.advertise<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc_sg", 10);
     pubPID = nh.advertise<offboard::DebugPid>("controller/pid", 1);
 
     ROS_INFO("Subscriber: %s", subState.getTopic().c_str());
@@ -458,6 +572,11 @@ int main(int argc, char **argv)
         // 传入PX4串级PID程序解算，并发布控制话题
         px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
         pubPx4Attitude.publish(msgTargetAttitudeThrust);
+        timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
+        while (timed_thrust_.size() > 100)
+        {
+            timed_thrust_.pop();
+        }
 
         // 可视化欧拉角姿态与油门值
         msgDroneTargetEulerThrust.header.stamp = ros::Time::now();

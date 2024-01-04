@@ -48,7 +48,7 @@ include_directories(
 )
 
 
-add_executable(controller_node src/controller_node.cpp)
+add_executable(controller_node src/controller_node.cpp include/controller/FILTER.cpp)
 target_link_libraries(controller_node ${catkin_LIBRARIES})
 
 # DEMO
