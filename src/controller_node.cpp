@@ -126,7 +126,21 @@ double computeDesiredCollectiveThrustSignal( const Eigen::Vector3d &des_acc )
   double throttle_percentage(0.0);
   
   /* compute throttle, thr2acc has been estimated before */
-  throttle_percentage = des_acc.norm() / thr2acc_;
+    //throttle_percentage = des_acc.norm() / thr2acc_;
+    //here we use a new model
+    // acc = K1 * (K2 * thr**2 + (1 - K2) * thr)
+    // use implicit expression: thr = 0.5 * (sqrt(K2**2 + 4 * K1 * acc) - K2) / K1
+    double K1 = 39.554;
+    double K2 = 0.971;
+    double a = K1 * K2;
+    double b = K1 * (1 - K2);
+    double c = -des_acc.norm();
+    double discriminant = b**2 - 4*a*c;
+    if(discriminant < 0){
+        ROS_WARN("discriminant < 0");
+        return baseThrust;
+    }
+    throttle_percentage = 0.5 * (sqrt(discriminant) - b) / a;
 
   return throttle_percentage;
 }
