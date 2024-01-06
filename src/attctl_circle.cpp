@@ -219,22 +219,8 @@ int main(int argc, char **argv)
                     /**
                      *  case 0 hovering
                      */
-                    // pva_traj.px = 0 + takeoff_pose.pose.position.x;
-                    // pva_traj.py = 0 + takeoff_pose.pose.position.y;
-                    // pva_traj.pz = hover_height;
-                    // pva_traj.vx = 0;
-                    // pva_traj.vy = 0;
-                    // pva_traj.vz = 0;
-                    // pva_traj.ax = 0;
-                    // pva_traj.ay = 0;
-                    // pva_traj.az = 0;
-                    // pva_traj.yaw = 0.0;
-
-                    /**
-                     *  case 1 circling WITHOUT yaw rotating
-                     */
-                    pva_traj.px = r_circle * sin(phi) + takeoff_pose.pose.position.x;
-                    pva_traj.py = r_circle * (1 - cos(phi)) + takeoff_pose.pose.position.y;
+                    pva_traj.px = 0 + takeoff_pose.pose.position.x;
+                    pva_traj.py = 0 + takeoff_pose.pose.position.y;
                     pva_traj.pz = hover_height;
                     pva_traj.vx = 0;
                     pva_traj.vy = 0;
@@ -243,6 +229,20 @@ int main(int argc, char **argv)
                     pva_traj.ay = 0;
                     pva_traj.az = 0;
                     pva_traj.yaw = 0.0;
+
+                    /**
+                     *  case 1 circling WITHOUT yaw rotating
+                     */
+                    // pva_traj.px = r_circle * sin(phi) + takeoff_pose.pose.position.x;
+                    // pva_traj.py = r_circle * (1 - cos(phi)) + takeoff_pose.pose.position.y;
+                    // pva_traj.pz = hover_height;
+                    // pva_traj.vx = 0;
+                    // pva_traj.vy = 0;
+                    // pva_traj.vz = 0;
+                    // pva_traj.ax = 0;
+                    // pva_traj.ay = 0;
+                    // pva_traj.az = 0;
+                    // pva_traj.yaw = 0.0;
 
                     /**
                      *  case 2  yaw rotating WITHOUT moving

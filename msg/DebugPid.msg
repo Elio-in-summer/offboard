@@ -5,3 +5,8 @@ geometry_msgs/Point POut
 geometry_msgs/Point VOut
 geometry_msgs/Point AOut
 geometry_msgs/Point TotalOut
+std_msgs/Float64 P_
+std_msgs/Float64 model_error
+std_msgs/Float64 thr_norm
+std_msgs/Float64 est_a_norm
+std_msgs/Float64 base_thrust

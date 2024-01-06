@@ -2,6 +2,7 @@
 #include "controller/pid.h"
 #include "controller/rosRelated.h"
 #include <tf/transform_broadcaster.h>
+#include <mavros_msgs/State.h>
 #include <PosVelAcc.h>
 #include <DebugPid.h>
 #include <ctime>
@@ -19,6 +20,7 @@ geometry_msgs::PoseStamped pos_cur;
 geometry_msgs::TwistStamped vel_cur;
 nav_msgs::Odometry odom_cur;
 offboard::PosVelAcc droneTargetPVA;
+mavros_msgs::State uav_cur_state;
 double targetPoseLastTimeStamp = 0.0; // 上一次目标点时间戳
 
 geometry_msgs::Vector3 droneTargetEuler; // 飞行控制： 期望欧拉角与油门值，仅供自己输出参考
@@ -62,6 +64,11 @@ std::queue<std::pair<ros::Time, double>> timed_thrust_;
 double rho2_ = 0.998;
 double P_;
 double thr2acc_;
+double thrust_model_error;
+double est_a_norm;
+double thr_norm;
+
+//get drone state
 
 void resetThrustMapping(void)
 {
@@ -100,6 +107,9 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     /***********************************/
     double gamma = 1 / (rho2_ + thr * P_ * thr);
     double K = gamma * P_ * thr;
+    thrust_model_error = est_a.norm() - thr2acc_ * thr;
+    thr_norm = thr;
+    est_a_norm = est_a.norm();
     thr2acc_ = thr2acc_ + K * (est_a.norm() - thr * thr2acc_);
     P_ = (1 - K * thr) * P_ / rho2_;
     //printf("%6.3f,%6.3f,%6.3f,%6.3f\n", thr2acc_, gamma, K, P_);
@@ -166,14 +176,19 @@ void acc_cb(const geometry_msgs::TwistStamped::ConstPtr& msg)
 
     Eigen::Vector3d est_a(ax_sg, ay_sg, az_sg);
     est_a = est_a + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
-    if (estimateThrustModel(est_a))
-    {
-        ROS_INFO("Thr2Acc: %f", thr2acc_);
+    if(uav_cur_state.armed && uav_cur_state.mode == "OFFBOARD"){
+        if (estimateThrustModel(est_a))
+        {
+            ROS_INFO("Thr2Acc: %f", thr2acc_);
+        }
     }
 
 }
 
-
+void uav_state_cb(const mavros_msgs::State::ConstPtr &msg)
+{
+    uav_cur_state = *msg;
+}
 
 /**
  * 将欧拉角转化为四元数, 欧拉角的顺序为Yaw(z)-Pitch(y)-Roll(x)
@@ -424,6 +439,11 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.TotalOut.x = accExcept[0];
     msgDebugPid.TotalOut.y = accExcept[1];
     msgDebugPid.TotalOut.z = accExcept[2];
+    msgDebugPid.P_.data = P_;
+    msgDebugPid.model_error.data = thrust_model_error;
+    msgDebugPid.base_thrust.data = GRAVITATIONAL_ACC/thr2acc_;
+    msgDebugPid.est_a_norm.data = est_a_norm;
+    msgDebugPid.thr_norm.data = thr_norm;
     pubPID.publish(msgDebugPid);
 }
 
@@ -467,6 +487,7 @@ int main(int argc, char **argv)
     ros::Subscriber subOdom = nh.subscribe<nav_msgs::Odometry>("mavros/vision_pose/odom", 1, &cb_odom);
     ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva);
     ros::Subscriber acc_sub = nh.subscribe<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc", 10, acc_cb);
+    ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>("/mavros/state", 10, uav_state_cb);
     
     /// publisher
     ros::Publisher pubPx4Attitude = nh.advertise<mavros_msgs::AttitudeTarget>("mavros/setpoint_raw/attitude", 1);
