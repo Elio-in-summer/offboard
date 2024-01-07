@@ -68,7 +68,10 @@ double thrust_model_error;
 double est_a_norm;
 double thr_norm;
 
+double K1 = 39.554;
+double K2 = 0.971;
 //get drone state
+//acc = K1 * (K2 * thr**2 + (1 - K2) * thr), K1 will be estimated
 
 void resetThrustMapping(void)
 {
@@ -105,13 +108,17 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     /***********************************/
     /* Model: est_a(2) = thr1acc_ * thr */
     /***********************************/
-    double gamma = 1 / (rho2_ + thr * P_ * thr);
-    double K = gamma * P_ * thr;
-    thrust_model_error = est_a.norm() - thr2acc_ * thr;
+    double thr_pre = (K2 * thr * thr + (1 - K2) * thr);
+    double gamma = 1 / (rho2_ + thr_pre * P_ * thr_pre);
+    double K = gamma * P_ * thr_pre;
+    // thrust_model_error = est_a.norm() - thr2acc_ * thr_pre;
     thr_norm = thr;
     est_a_norm = est_a.norm();
-    thr2acc_ = thr2acc_ + K * (est_a.norm() - thr * thr2acc_);
-    P_ = (1 - K * thr) * P_ / rho2_;
+    thrust_model_error = (est_a.norm() - (K1 * thr_pre));
+
+
+    K1 = K1 + K * (est_a.norm() - thr_pre * K1);
+    P_ = (1 - K * thr_pre) * P_ / rho2_;
     //printf("%6.3f,%6.3f,%6.3f,%6.3f\n", thr2acc_, gamma, K, P_);
     //fflush(stdout);
 
@@ -130,12 +137,10 @@ double computeDesiredCollectiveThrustSignal( const Eigen::Vector3d &des_acc )
     //here we use a new model
     // acc = K1 * (K2 * thr**2 + (1 - K2) * thr)
     // use implicit expression: thr = 0.5 * (sqrt(K2**2 + 4 * K1 * acc) - K2) / K1
-    double K1 = 39.554;
-    double K2 = 0.971;
     double a = K1 * K2;
     double b = K1 * (1 - K2);
     double c = -des_acc.norm();
-    double discriminant = b**2 - 4*a*c;
+    double discriminant = b*b - 4*a*c;
     if(discriminant < 0){
         ROS_WARN("discriminant < 0");
         return baseThrust;
@@ -455,7 +460,7 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.TotalOut.z = accExcept[2];
     msgDebugPid.P_.data = P_;
     msgDebugPid.model_error.data = thrust_model_error;
-    msgDebugPid.base_thrust.data = GRAVITATIONAL_ACC/thr2acc_;
+    msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
     pubPID.publish(msgDebugPid);
