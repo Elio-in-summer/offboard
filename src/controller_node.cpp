@@ -3,8 +3,11 @@
 #include "controller/rosRelated.h"
 #include <tf/transform_broadcaster.h>
 #include <mavros_msgs/State.h>
+#include <sensor_msgs/Imu.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <PosVelAcc.h>
 #include <DebugPid.h>
+#include "Eigen/Eigen"
 #include <ctime>
 
 #include "controller/FILTER.h"
@@ -21,10 +24,18 @@ geometry_msgs::TwistStamped vel_cur;
 nav_msgs::Odometry odom_cur;
 offboard::PosVelAcc droneTargetPVA;
 mavros_msgs::State uav_cur_state;
+Eigen::Vector3d imu_acc;
+Eigen::Vector3d imu_body_rate;
+Eigen::Quaterniond imu_quat;
+Eigen::Vector3d acc_in_w;
+Eigen::Quaterniond odom_quat;
+
+
 double targetPoseLastTimeStamp = 0.0; // 上一次目标点时间戳
 
 geometry_msgs::Vector3 droneTargetEuler; // 飞行控制： 期望欧拉角与油门值，仅供自己输出参考
 geometry_msgs::PoseStamped msgDroneTargetEulerThrust;
+
 
 // TODO : TEST
 ros::Publisher pubPID;
@@ -67,6 +78,7 @@ double thr2acc_;
 double thrust_model_error;
 double est_a_norm;
 double thr_norm;
+double var;
 
 double K1 = 39.554;
 double K2 = 0.971;
@@ -111,13 +123,13 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     double thr_pre = (K2 * thr * thr + (1 - K2) * thr);
     double gamma = 1 / (rho2_ + thr_pre * P_ * thr_pre);
     double K = gamma * P_ * thr_pre;
-    // thrust_model_error = est_a.norm() - thr2acc_ * thr_pre;
     thr_norm = thr;
-    est_a_norm = est_a.norm();
-    thrust_model_error = (est_a.norm() - (K1 * thr_pre));
+    est_a_norm = est_a(2);
+    thrust_model_error = (est_a_norm - (K1 * thr_pre));
+    var = gamma;
 
 
-    K1 = K1 + K * (est_a.norm() - thr_pre * K1);
+    K1 = K1 + K * (est_a_norm - thr_pre * K1);
     P_ = (1 - K * thr_pre) * P_ / rho2_;
     //printf("%6.3f,%6.3f,%6.3f,%6.3f\n", thr2acc_, gamma, K, P_);
     //fflush(stdout);
@@ -170,6 +182,10 @@ void cb_state(const mavros_msgs::State::ConstPtr &msg)
 void cb_odom(const nav_msgs::Odometry::ConstPtr &msg)
 {
     odom_cur = *msg;
+    odom_quat.w() = msg->pose.pose.orientation.w;
+    odom_quat.x() = msg->pose.pose.orientation.x;
+    odom_quat.y() = msg->pose.pose.orientation.y;
+    odom_quat.z() = msg->pose.pose.orientation.z;
 }
 
 void cb_target_pva(const offboard::PosVelAcc::ConstPtr &msg)
@@ -178,30 +194,22 @@ void cb_target_pva(const offboard::PosVelAcc::ConstPtr &msg)
     targetPoseLastTimeStamp = ros::Time::now().toSec();
 }
 
-void acc_cb(const geometry_msgs::TwistStamped::ConstPtr& msg)
+void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
 {
-    double ax = msg->twist.linear.x;
-    double ay = msg->twist.linear.y;
-    double az = msg->twist.linear.z;
-    ax_sg = ax_sgFilter.sgfilter(ax);
-    ay_sg = ay_sgFilter.sgfilter(ay);
-    az_sg = az_sgFilter.sgfilter(az);
-    // pub the sg filtered acc
-    acc_sg.header.stamp = msg->header.stamp;
-    acc_sg.twist.linear.x = ax_sg;
-    acc_sg.twist.linear.y = ay_sg;
-    acc_sg.twist.linear.z = az_sg;
-    acc_pub.publish(acc_sg); 
-
-    Eigen::Vector3d est_a(ax_sg, ay_sg, az_sg);
-    est_a = est_a + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
+    imu_acc << msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z;
+    imu_body_rate << msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z;
+    imu_quat.w() = msg->orientation.w;
+    imu_quat.x() = msg->orientation.x;
+    imu_quat.y() = msg->orientation.y;
+    imu_quat.z() = msg->orientation.z;
     if(uav_cur_state.armed && uav_cur_state.mode == "OFFBOARD"){
-        if (estimateThrustModel(est_a))
+        if (estimateThrustModel(imu_acc))
         {
             ROS_INFO("Thr2Acc: %f", thr2acc_);
         }
     }
-
+    // imu_quat is quat from world to body, imu_acc is in body frame
+    acc_in_w = imu_quat.inverse() * imu_acc - Eigen::Vector3d(0, 0, GRAVITATIONAL_ACC);
 }
 
 void uav_state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -265,11 +273,6 @@ tf::StampedTransform get_stamped_transform_from_pose(float x, float y, float z, 
     trans.setOrigin(orig);
     return trans;
 }
-
-
-
-
-
 
 
 
@@ -376,7 +379,7 @@ void px4AttitudeCtlPVA(double _currTime,
         pidPZ.Output + pidVZ.Output + TargetAcc[2];
 
     // TODO:限制Z方向加速度
-    accExcept[2] = min(3.0, max(accExcept[2], -3.0));
+    accExcept[2] = min(6.0, max(accExcept[2], -6.0));
 
     accExcept_g = accExcept + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
 
@@ -417,7 +420,7 @@ void px4AttitudeCtlPVA(double _currTime,
     orientationTarget.y = qua_.y();
     orientationTarget.z = qua_.z();
 
-    // TODO:限制总推力
+    // ! TODO:限制总推力
     // thrustTarget = accExcept_g.norm() / GRAVITATIONAL_ACC * (baseThrust); // 目标推力值
     thrustTarget = computeDesiredCollectiveThrustSignal(accExcept_g);
     // thrustTarget = min(max(thrustTarget, (double)rosParamThrustLimit[0]), (double)rosParamThrustLimit[1]);
@@ -463,6 +466,18 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
+    msgDebugPid.var.data = var;
+    msgDebugPid.acc_in_w.x = acc_in_w(0);
+    msgDebugPid.acc_in_w.y = acc_in_w(1);
+    msgDebugPid.acc_in_w.z = acc_in_w(2);
+    msgDebugPid.imu_q.w = imu_quat.w();
+    msgDebugPid.imu_q.x = imu_quat.x();
+    msgDebugPid.imu_q.y = imu_quat.y();
+    msgDebugPid.imu_q.z = imu_quat.z();
+    msgDebugPid.odom_q.w = odom_quat.w();
+    msgDebugPid.odom_q.x = odom_quat.x();
+    msgDebugPid.odom_q.y = odom_quat.y();
+    msgDebugPid.odom_q.z = odom_quat.z();
     pubPID.publish(msgDebugPid);
 }
 
@@ -505,7 +520,7 @@ int main(int argc, char **argv)
     // ros::Subscriber subLocalVel = nh.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 1, &cb_vel);
     ros::Subscriber subOdom = nh.subscribe<nav_msgs::Odometry>("mavros/vision_pose/odom", 1, &cb_odom);
     ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva);
-    ros::Subscriber acc_sub = nh.subscribe<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc", 10, acc_cb);
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, imu_cb);
     ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>("/mavros/state", 10, uav_state_cb);
     
     /// publisher
