@@ -1,10 +1,12 @@
 import rosbag
 import numpy as np
 import matplotlib.pyplot as plt
+# from ipywidgets import interact
 # import std_msgs.msg
 
 # 路径替换为你的ROS bag文件路径
-bag_path = '/home/hxl/Documents/model_cut.bag'
+# bag_path = '/home/hxl/Downloads/agress_traj_cut.bag'
+bag_path = '/home/up/252.bag'
 
 # 初始化存储数据的列表
 thr_norm_data = []
@@ -37,38 +39,41 @@ timestamps = data[:, 0]
 normalized_time = (timestamps - timestamps[0])/(timestamps[-1] - timestamps[0])
 
 
+from scipy.optimize import curve_fit
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+# 假设你已经有了thr和acc数据
+thr = data[:, 1]
+acc = data[:, 2]
 
-# 第一个子图
-ax1.plot(normalized_time, 15 * data[:, 1], label='thr_norm_data')
-ax1.plot(normalized_time, data[:, 2], label='est_a_norm_data')
-line, = ax1.plot([0, 0], [0, 16], color="k", linestyle="--")  # 初始垂直线
-ax1.set_xlabel('Normalized Time')
-ax1.set_ylabel('Data')
-ax1.legend()
-ax1.grid(True)
+# 定义模型函数
+def model1(thr, K1, K2):
+    return K1 * (K2 * thr**2 + (1 - K2) * thr)
+def model2(thr, K):
+    return K * thr
 
-# 第二个子图
-sc = ax2.scatter(data[:, 1], data[:, 2], c=normalized_time, cmap='coolwarm', alpha=0.5)
-ax2.set_xlabel('thr_norm_data')
-ax2.set_ylabel('est_a_norm_data')
-ax2.legend(['thr_norm_data vs est_a_norm_data'])
-ax2.grid(True)
+# 使用curve_fit来估计参数
+popt1, pcov1 = curve_fit(model1, thr, acc)
+popt2, pcov2 = curve_fit(model2, thr, acc)
 
-def onclick(event):
-    if event.inaxes == ax2:
-        # 计算点击位置与所有点的距离
-        dist = np.linalg.norm(data[:, 1:3] - [event.xdata, event.ydata], axis=1)
-        # 找到最近点的索引
-        index = np.argmin(dist)
-        # 找到对应的时间点
-        time_point = normalized_time[index]
-        # 更新第一个子图的垂直线
-        line.set_xdata([time_point, time_point])
-        fig.canvas.draw()
+print("pcov1: ", pcov1)
+print("pcov2: ", pcov2)
+print("popt1: ", popt1)
+print("popt2: ", popt2)
+# 生成预测曲线的推力值
+thr_pred = np.linspace(np.min(thr), np.max(thr), 500)
+# 计算预测曲线的加速度值
+acc_pred1 = model1(thr_pred, *popt1)
+acc_pred2 = model2(thr_pred, *popt2)
 
-# 绑定点击事件
-fig.canvas.mpl_connect('button_press_event', onclick)
+# 绘制原始数据的散点图
+plt.scatter(thr, acc, label='Original Data')
 
+# 绘制模型预测的曲线
+plt.plot(thr_pred, acc_pred1, color='red', label='Fitted Model')
+plt.plot(thr_pred, acc_pred2, color='green', label='Fitted Model')
+
+plt.xlabel('Thrust')
+plt.ylabel('Acceleration')
+plt.title('Thrust vs. Acceleration with Fitted Model')
+plt.legend()
 plt.show()

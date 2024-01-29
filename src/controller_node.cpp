@@ -80,8 +80,8 @@ double est_a_norm;
 double thr_norm;
 double var;
 
-double K1 = 39.554;
-double K2 = 0.971;
+double K1 = 23.5258;
+double K2 = 0.5309;
 //get drone state
 //acc = K1 * (K2 * thr**2 + (1 - K2) * thr), K1 will be estimated
 
@@ -126,6 +126,8 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     thr_norm = thr;
     est_a_norm = est_a(2);
     thrust_model_error = (est_a_norm - (K1 * thr_pre));
+    // ! est_a_norm is actually acc measured
+    // ! est_a_norm - thrust_model_error is the calculated acc
     var = gamma;
 
 
@@ -202,6 +204,11 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
     imu_quat.x() = msg->orientation.x;
     imu_quat.y() = msg->orientation.y;
     imu_quat.z() = msg->orientation.z;
+
+    ax_sg = ax_sgFilter.sgfilter(imu_acc(0));
+    ay_sg = ay_sgFilter.sgfilter(imu_acc(1));
+    az_sg = az_sgFilter.sgfilter(imu_acc(2));
+
     if(uav_cur_state.armed && uav_cur_state.mode == "OFFBOARD"){
         if (estimateThrustModel(imu_acc))
         {
@@ -209,7 +216,12 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
         }
     }
     // imu_quat is quat from world to body, imu_acc is in body frame
-    acc_in_w = imu_quat.inverse() * imu_acc - Eigen::Vector3d(0, 0, GRAVITATIONAL_ACC);
+    imu_acc << ax_sg, ay_sg, az_sg;
+    //! basically, imu_q = odom_q
+    acc_in_w = imu_quat * imu_acc - Eigen::Vector3d(0, 0, GRAVITATIONAL_ACC);
+    //! acc_in_w is filtered acc in world frame
+    //! can be compared with set_pva or total_out_a,so we can see if DOB is needed
+
 }
 
 void uav_state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -466,7 +478,7 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
-    msgDebugPid.var.data = var;
+    msgDebugPid.var.data = P_;
     msgDebugPid.acc_in_w.x = acc_in_w(0);
     msgDebugPid.acc_in_w.y = acc_in_w(1);
     msgDebugPid.acc_in_w.z = acc_in_w(2);
