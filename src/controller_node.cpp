@@ -63,7 +63,7 @@ double thrustTarget;                         // 期望油门
 mavros_msgs::AttitudeTarget msgTargetAttitudeThrust;
 
 //加速度滤波
-FILTER ax_sgFilter(51,21,2),ay_sgFilter(51,21,2),az_sgFilter(51,21,2);
+FILTER ax_sgFilter(31,11,2),ay_sgFilter(21,11,2),az_sgFilter(31,11,2);
 double ax_sg = 0;
 double ay_sg = 0;
 double az_sg = 0;
@@ -209,6 +209,8 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
     ay_sg = ay_sgFilter.sgfilter(imu_acc(1));
     az_sg = az_sgFilter.sgfilter(imu_acc(2));
 
+    imu_acc << ax_sg, ay_sg, az_sg;
+
     if(uav_cur_state.armed && uav_cur_state.mode == "OFFBOARD"){
         if (estimateThrustModel(imu_acc))
         {
@@ -216,7 +218,6 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
         }
     }
     // imu_quat is quat from world to body, imu_acc is in body frame
-    imu_acc << ax_sg, ay_sg, az_sg;
     //! basically, imu_q = odom_q
     acc_in_w = imu_quat * imu_acc - Eigen::Vector3d(0, 0, GRAVITATIONAL_ACC);
     //! acc_in_w is filtered acc in world frame

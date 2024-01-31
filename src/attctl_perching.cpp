@@ -183,7 +183,7 @@ int main(int argc, char **argv)
                     pow(uav_cur_pose.pose.position.y - takeoff_pose.pose.position.y, 2) +
                     pow(uav_cur_pose.pose.position.z - takeoff_pose.pose.position.z, 2));
 
-                if (distance < 0.3) // TODO: 调整阈值
+                if (distance < 0.1) // TODO: 调整阈值
                 {
                     stable_count++;
                 }
