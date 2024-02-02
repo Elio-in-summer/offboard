@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 # 路径替换为你的ROS bag文件路径
 # bag_path = '/home/hxl/Downloads/agress_traj_cut.bag'
-bag_path = '/home/up/311_cut.bag'
+bag_path = '/home/up/2021.bag'
 
 # 初始化存储数据的列表
 thr_norm_data = []

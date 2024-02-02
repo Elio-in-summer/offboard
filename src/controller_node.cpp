@@ -80,8 +80,10 @@ double est_a_norm;
 double thr_norm;
 double var;
 
-double K1 = 23.5258;
-double K2 = 0.5309;
+// double K1 = 20.5258;
+// double K2 = 0.609;
+double K1 = 18.16;
+double K2 = 0;
 //get drone state
 //acc = K1 * (K2 * thr**2 + (1 - K2) * thr), K1 will be estimated
 
@@ -392,7 +394,7 @@ void px4AttitudeCtlPVA(double _currTime,
         pidPZ.Output + pidVZ.Output + TargetAcc[2];
 
     // TODO:限制Z方向加速度
-    accExcept[2] = min(6.0, max(accExcept[2], -6.0));
+    accExcept[2] = min(7.0, max(accExcept[2], -7.0));
 
     accExcept_g = accExcept + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
 
