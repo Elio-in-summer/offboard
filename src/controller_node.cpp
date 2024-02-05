@@ -80,10 +80,10 @@ double est_a_norm;
 double thr_norm;
 double var;
 
-// double K1 = 20.5258;
-// double K2 = 0.609;
-double K1 = 18.16;
-double K2 = 0;
+double K1 = 27.06;
+double K2 = 0.74;
+//double K1 = 18.16;
+//double K2 = 0;
 //get drone state
 //acc = K1 * (K2 * thr**2 + (1 - K2) * thr), K1 will be estimated
 

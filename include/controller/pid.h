@@ -117,11 +117,12 @@ bool PID::add_error(double input_error, double curtime)
 }
 
 void PID::pid_output(void)
-{
+{   
+    delta_time = 0.02;
     P_Out = Kp * error;                      // P环节输出值
     I_Out = I_Out + Ki * error * delta_time; // I环节输出值
 
-    // std::cout << "pid" << Ki << " " << error << " " << delta_time << " " << endl; // TODO TEST DELETE
+    std::cout << "pid" << Ki << " " << error << " " << delta_time << " " << endl; // TODO TEST DELETE
     I_Out = satfunc(I_Out, Imax, 0);                                              // I环节限幅[I_Out<=Imax]
 
     if (start_intergrate_flag == 0)

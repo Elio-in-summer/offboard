@@ -4,12 +4,13 @@ ThrustLimit: [0.280, 0.580]
 
 
 # 位置环 PID 参数
+# Kd will divide delta_time, which is 0.02 when running at 50Hz
 # posKP: [5, 1, 6]
 posKP: [4, 1, 4]
 posKI: [0.0, 0.0, 0.0]
-posKD: [0.0, 0.0, 0.0]
+posKD: [0.002, 0.0, 0.002]
 # 速度环 PID 参数
 # velKP: [5, 1.5, 4]
-velKP: [4, 1.5, 4]
+velKP: [3.5, 1.5, 3.5]
 velKI: [0.0, 0.0, 0.0]
-velKD: [0.0, 0.0, 0.0]
+velKD: [0.002, 0.0, 0.003]
