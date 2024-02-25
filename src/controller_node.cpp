@@ -80,8 +80,8 @@ double est_a_norm;
 double thr_norm;
 double var;
 
-double K1 = 27.06;
-double K2 = 0.74;
+double K1 = 20.577;
+double K2 = 0.525;
 //double K1 = 18.16;
 //double K2 = 0;
 //get drone state
