@@ -2,7 +2,13 @@ std_msgs/Header header
 geometry_msgs/Point PError
 geometry_msgs/Point VError
 geometry_msgs/Point POut
+geometry_msgs/Point POut_P
+geometry_msgs/Point POut_I
+geometry_msgs/Point POut_D
 geometry_msgs/Point VOut
+geometry_msgs/Point VOut_P
+geometry_msgs/Point VOut_I
+geometry_msgs/Point VOut_D
 geometry_msgs/Point AOut
 geometry_msgs/Point TotalOut
 std_msgs/Float64 P_

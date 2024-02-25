@@ -464,24 +464,53 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.POut.x = pidPX.Output;
     msgDebugPid.POut.y = pidPY.Output;
     msgDebugPid.POut.z = pidPZ.Output;
+
+    msgDebugPid.POut_P.x = pidPX.P_Out;
+    msgDebugPid.POut_P.y = pidPY.P_Out;
+    msgDebugPid.POut_P.z = pidPZ.P_Out;
+
+    msgDebugPid.POut_I.x = pidPX.I_Out;
+    msgDebugPid.POut_I.y = pidPY.I_Out;
+    msgDebugPid.POut_I.z = pidPZ.I_Out;
+
+    msgDebugPid.POut_D.x = pidPX.D_Out;
+    msgDebugPid.POut_D.y = pidPY.D_Out;
+    msgDebugPid.POut_D.z = pidPZ.D_Out;
+
     msgDebugPid.VError.x = velError[0];
     msgDebugPid.VError.y = velError[1];
     msgDebugPid.VError.z = velError[2];
     msgDebugPid.VOut.x = pidVX.Output;
     msgDebugPid.VOut.y = pidVY.Output;
     msgDebugPid.VOut.z = pidVZ.Output;
+
+    msgDebugPid.VOut_P.x = pidVX.P_Out;
+    msgDebugPid.VOut_P.y = pidVY.P_Out;
+    msgDebugPid.VOut_P.z = pidVZ.P_Out;
+
+    msgDebugPid.VOut_I.x = pidVX.I_Out;
+    msgDebugPid.VOut_I.y = pidVY.I_Out;
+    msgDebugPid.VOut_I.z = pidVZ.I_Out;
+
+    msgDebugPid.VOut_D.x = pidVX.D_Out;
+    msgDebugPid.VOut_D.y = pidVY.D_Out;
+    msgDebugPid.VOut_D.z = pidVZ.D_Out;
+
     msgDebugPid.AOut.x = TargetAcc[0];
     msgDebugPid.AOut.y = TargetAcc[1];
     msgDebugPid.AOut.z = TargetAcc[2];
     msgDebugPid.TotalOut.x = accExcept[0];
     msgDebugPid.TotalOut.y = accExcept[1];
     msgDebugPid.TotalOut.z = accExcept[2];
+
+
     msgDebugPid.P_.data = P_;
     msgDebugPid.model_error.data = thrust_model_error;
     msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
     msgDebugPid.var.data = P_;
+
     msgDebugPid.acc_in_w.x = acc_in_w(0);
     msgDebugPid.acc_in_w.y = acc_in_w(1);
     msgDebugPid.acc_in_w.z = acc_in_w(2);
@@ -493,6 +522,7 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.odom_q.x = odom_quat.x();
     msgDebugPid.odom_q.y = odom_quat.y();
     msgDebugPid.odom_q.z = odom_quat.z();
+
     pubPID.publish(msgDebugPid);
 }
 
