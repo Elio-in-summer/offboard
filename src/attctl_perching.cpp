@@ -207,18 +207,18 @@ int main(int argc, char **argv)
                     stable_count = 0;
                 }
             }
-            else if (execute_flag == 2)
-            {   // hover
+            else if (execute_flag == 1 or execute_flag == 4)
+            {   
+                ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
+                hover_pose = uav_cur_pose;
+            }
+            else
+            {
+                // hover
                 ROS_INFO_STREAM_ONCE("\033[33m HOVERING! \033[0m");
                 offboard::PosVelAcc pva_hover;
                 pose2pva(hover_pose, pva_hover);
                 offb_setpva_pub.publish(pva_hover);
-
-            }
-            else
-            {
-                ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
-                hover_pose = uav_cur_pose;
             }
         }
         else
