@@ -1,7 +1,6 @@
 // Created by zph on 2021/1/12.
 // Modified by wzy on 2022/12/28.
 // Modified by mzy on 2023/5/4.
-
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -139,7 +138,8 @@ int main(int argc, char **argv)
         {   
             // ! execute_flag = 0: Before traj tracking, the uav need to take off to the initial height and hover
             if (execute_flag == 0)
-            {
+            {   
+                // std::cout << "takeoff_pose_z: " << takeoff_pose.pose.position.z << std::endl;
                 if (!takeoff)
                 {
                     offboard::PosVelAcc pva_climb;
@@ -187,6 +187,7 @@ int main(int argc, char **argv)
                 if (distance < 0.1) // TODO: 调整阈值
                 {
                     stable_count++;
+                    std::cout << "stable_count: " << stable_count << std::endl;
                 }
                 else
                 {
@@ -205,23 +206,19 @@ int main(int argc, char **argv)
                     std_msgs::Bool is_stable;
                     is_stable.data = true;
                     is_stable_pub.publish(is_stable);
+                    execute_flag = 9;
                     stable_count = 0;
                 }
-            }
-            else if (execute_flag == 1 or execute_flag == 4)
-            {   
-                // ! execute_flag = 1: tracking perching trajectory
-                // ! execute_flag = 4: tracking post-perching trajectory
-                // ! At this time, we won't send offb_setpva_pub by this node, but by the planner node
-                // ! We update the hover_pose to the current pose so once the planner node is down, the uav will hover
-                ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
+
+                // ! hover pose is updated to the current pose
                 hover_pose = uav_cur_pose;
             }
             else
-            {
+            {   
+                std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
                 // ! After the trajectory tracking, the uav will hover
                 if (!ready_to_land){
-                    ROS_INFO_STREAM_ONCE("\033[33m HOVERING! \033[0m");
+                    ROS_INFO_STREAM_ONCE("\033[33m HOVERING Before Landing! \033[0m");
                     offboard::PosVelAcc pva_hover;
                     pose2pva(hover_pose, pva_hover);
                     offb_setpva_pub.publish(pva_hover);
@@ -234,6 +231,7 @@ int main(int argc, char **argv)
                     if (distance < 0.1)
                     {
                         stable_count++;
+                        std::cout << "stable_count: " << stable_count << std::endl;
                     }
                     else
                     {
@@ -267,7 +265,7 @@ int main(int argc, char **argv)
                         // TODO:下降速度 0.1m/s
                         land_pose.pose.position.z = land_pose.pose.position.z -
                                                      0.1 / double(ctrl_rate);
-                        land_pose.pose.position.z = std::max(land_pose.pose.position.z, 0.0);
+                        // land_pose.pose.position.z = std::max(land_pose.pose.position.z, 0.0);
                         pose2pva(land_pose, pva_land);
                         offb_setpva_pub.publish(pva_land);
                         ROS_INFO_THROTTLE(1, "Landing]: Target: %.2f, %.2f, %.2f | Cur: %.2f, %.2f, %.2f",

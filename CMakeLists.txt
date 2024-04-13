@@ -67,3 +67,6 @@ target_link_libraries(attctl_traj ${catkin_LIBRARIES} )
 
 add_executable(attctl_perching src/attctl_perching.cpp)
 target_link_libraries(attctl_perching ${catkin_LIBRARIES})
+
+add_executable(takeoff_landing src/takeoff_landing.cpp)
+target_link_libraries(takeoff_landing ${catkin_LIBRARIES})

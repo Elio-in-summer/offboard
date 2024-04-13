@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  <arg name="agent_id" default="0"/>
+
+  <node name="takeoff_landing" pkg="offboard" type="takeoff_landing" output="screen">
+		<remap from="/mavros/state" to = "/uav$(arg agent_id)/mavros/state"/>
+		<remap from="/mavros/vision_pose/odom" to = "/iris_$(arg agent_id)/vicon/odom"/>
+	</node>
+  
+  <!-- <node name="controller_node" pkg="offboard" type="controller_node" output="screen"> -->
+  <node name="controller_node" pkg="offboard" type="controller_node">
+		<rosparam command="load" file="$(find offboard)/cfg/uav.yaml" />
+		<remap from="/mavros/state" to = "/uav$(arg agent_id)/mavros/state"/>
+		<remap from="/mavros/setpoint_raw/attitude" to = "/uav$(arg agent_id)/mavros/setpoint_raw/attitude"/>
+		<remap from="/mavros/vision_pose/odom" to = "/iris_$(arg agent_id)/vicon/odom"/>
+        <remap from="/mavros/imu/data" to = "/uav$(arg agent_id)/mavros/imu/data"/>
+	</node>
+
+</launch>
