@@ -668,7 +668,14 @@ int main(int argc, char **argv)
         // {
         //     yaw_last = TargetYaw;
         // }
-
+        // ! here target pz < -50 is a flag to stop the drone, so we publish 0 thrust and continue to skip pid control
+        if(droneTargetPVA.pz < -50){
+            msgTargetAttitudeThrust.thrust = 0;
+            msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
+            msgTargetAttitudeThrust.header.stamp = ros::Time::now();
+            pubPx4Attitude.publish(msgTargetAttitudeThrust);
+            continue;
+        }
         // 传入PX4串级PID程序解算，并发布控制话题
         px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
         pubPx4Attitude.publish(msgTargetAttitudeThrust);
@@ -679,10 +686,10 @@ int main(int argc, char **argv)
         }
 
         // 可视化欧拉角姿态与油门值
-        msgDroneTargetEulerThrust.header.stamp = ros::Time::now();
-        msgDroneTargetEulerThrust.pose.position.x = msgTargetAttitudeThrust.thrust;
-        msgDroneTargetEulerThrust.pose.orientation = msgTargetAttitudeThrust.orientation;
-        pubDroneTargetEulerThrust.publish(msgDroneTargetEulerThrust);
+        // msgDroneTargetEulerThrust.header.stamp = ros::Time::now();
+        // msgDroneTargetEulerThrust.pose.position.x = msgTargetAttitudeThrust.thrust;
+        // msgDroneTargetEulerThrust.pose.orientation = msgTargetAttitudeThrust.orientation;
+        // pubDroneTargetEulerThrust.publish(msgDroneTargetEulerThrust);
 
         rate.sleep();
     }

@@ -1,7 +1,6 @@
 // Created by zph on 2021/1/12.
 // Modified by wzy on 2022/12/28.
 // Modified by mzy on 2023/5/4.
-
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -221,7 +220,7 @@ int main(int argc, char **argv)
             {
                 // ! After the trajectory tracking, the uav will hover
                 if (!ready_to_land){
-                    ROS_INFO_STREAM_ONCE("\033[33m HOVERING! \033[0m");
+                    ROS_INFO_STREAM_ONCE("\033[33m HOVERING Before Landing! \033[0m");
                     offboard::PosVelAcc pva_hover;
                     pose2pva(hover_pose, pva_hover);
                     offb_setpva_pub.publish(pva_hover);
@@ -259,15 +258,15 @@ int main(int argc, char **argv)
                     offboard::PosVelAcc pva_land;
                     geometry_msgs::PoseStamped land_pose;
                     land_pose.pose.position.z = uav_cur_pose.pose.position.z;                    
-                    while (uav_cur_pose.pose.position.z > 0)
+                    land_pose.pose.position.x = uav_cur_pose.pose.position.x;
+                    land_pose.pose.position.y = uav_cur_pose.pose.position.y;
+                    int stop_count = 0;                    
+                    while (uav_cur_pose.pose.position.z > 0.2)
                     {
                         ros::spinOnce();
-                        land_pose.pose.position.x = takeoff_pose.pose.position.x;
-                        land_pose.pose.position.y = takeoff_pose.pose.position.y;
                         // TODO:下降速度 0.1m/s
                         land_pose.pose.position.z = land_pose.pose.position.z -
-                                                     0.1 / double(ctrl_rate);
-                        land_pose.pose.position.z = std::max(land_pose.pose.position.z, 0.0);
+                                                     0.1 / double(ctrl_rate);                      // land_pose.pose.position.z = std::max(land_pose.pose.position.z, 0.0);
                         pose2pva(land_pose, pva_land);
                         offb_setpva_pub.publish(pva_land);
                         ROS_INFO_THROTTLE(1, "Landing]: Target: %.2f, %.2f, %.2f | Cur: %.2f, %.2f, %.2f",
@@ -279,7 +278,26 @@ int main(int argc, char **argv)
                                           uav_cur_pose.pose.position.z);
                         ctrl_loop.sleep();
                     }
+                    // ! Actually, at this time uav have reached the ground, so let it disarmed as soon as possible
+                    int temp_count = 0;
+                    while (uav_cur_state.armed){
+                        if(temp_count < ctrl_rate * 2){
+                            land_pose.pose.position.z = land_pose.pose.position.z - 1.0 / double(ctrl_rate);
+                            pose2pva(land_pose, pva_land);
+                            offb_setpva_pub.publish(pva_land);
                     ROS_INFO_STREAM("\033[33m Land done \033[0m");
+                            temp_count++;
+                            ctrl_loop.sleep();
+                        }
+                        else{
+                            ROS_INFO_STREAM("\033[33m Stop All \033[0m");
+                            offboard::PosVelAcc pva_stop;
+                            // ! give an impossible position pz as the stop signal
+                            pva_stop.pz = -100.0; 
+                            offb_setpva_pub.publish(pva_stop);
+                            ctrl_loop.sleep();
+                        }
+                    }
                 }
                 
             }
