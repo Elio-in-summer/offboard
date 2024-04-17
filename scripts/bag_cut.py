@@ -2,8 +2,8 @@
 import rosbag
 from std_msgs.msg import Int8
 bag_id = '2292'
-input_bag_path = '/home/up/' + bag_id + '.bag'  # 输入bag文件的路径
-output_bag_path = '/home/up/' + bag_id + '_filtered.bag'  # 输出bag文件的路径
+input_bag_path = '/home/up/exper_data' + bag_id + '.bag'  # 输入bag文件的路径
+output_bag_path = '/home/up/exper_data' + bag_id + '_filtered.bag'  # 输出bag文件的路径
 
 def find_time_segment(input_bag_path):
     start_time = None
