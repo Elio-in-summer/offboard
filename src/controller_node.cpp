@@ -75,8 +75,10 @@ std::queue<std::pair<ros::Time, double>> timed_thrust_;
 double rho2_ = 0.998;
 double P_;
 double thr2acc_;
-FILTER model_error_Filter(20);
+FILTER model_error_Filter(30);
 double thrust_model_error;
+double model_error_stop_count = 0;
+double model_error_stop_count_max = LOOPRATE * 0.3;
 double model_error_filtered;
 double est_a_norm;
 double thr_norm;
@@ -676,6 +678,12 @@ int main(int argc, char **argv)
             droneTargetPVA.pz = droneTargetPVA.pz + 100;
             // !model error sudden change means hit the ground or platform, 2.7 is set by observation
             if(fabs(model_error_filtered) > 2.7){
+                model_error_stop_count++;
+            }
+            else{
+                model_error_stop_count = 0;
+            }
+            if(model_error_stop_count > model_error_stop_count_max){
                 msgTargetAttitudeThrust.thrust = 0;
                 msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
                 msgTargetAttitudeThrust.header.stamp = ros::Time::now();
