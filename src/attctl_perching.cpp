@@ -75,13 +75,13 @@ int main(int argc, char **argv)
 
     // ros pub and sub
     ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>(
-        "/mavros/state", 10, uav_state_cb);
+        "/mavros/state", 10, uav_state_cb, ros::TransportHints().tcpNoDelay() );
     ros::Subscriber uav_pose_sub = nh.subscribe<nav_msgs::Odometry>(
-        "/mavros/vision_pose/odom", 2, uav_pose_cb);
+        "/mavros/vision_pose/odom", 2, uav_pose_cb, ros::TransportHints().tcpNoDelay() );
     ros::Subscriber execute_flag_sub = nh.subscribe<std_msgs::Int8>(
-        "/palnner_execute_flag", 1, execute_flag_cb);
+        "/palnner_execute_flag", 1, execute_flag_cb, ros::TransportHints().tcpNoDelay() );
     ros::Subscriber goal_pose_sub = nh.subscribe<geometry_msgs::PoseStamped>(
-        "/goal_init_pose", 1, goal_init_pose_cb);
+        "/goal_init_pose", 1, goal_init_pose_cb, ros::TransportHints().tcpNoDelay() );
     ros::Publisher offb_setpva_pub = nh.advertise<offboard::PosVelAcc>(
         "/setpoint_pva", 10);
     ros::Publisher is_stable_pub = nh.advertise<std_msgs::Bool>(

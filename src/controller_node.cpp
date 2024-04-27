@@ -563,13 +563,13 @@ int main(int argc, char **argv)
     resetThrustMapping();
 
     /// subscriber
-    ros::Subscriber subState = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &cb_state);
+    ros::Subscriber subState = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &cb_state, ros::TransportHints().tcpNoDelay() );
     // ros::Subscriber subLocalPos = nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 1, &cb_pos);
     // ros::Subscriber subLocalVel = nh.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 1, &cb_vel);
-    ros::Subscriber subOdom = nh.subscribe<nav_msgs::Odometry>("mavros/vision_pose/odom", 1, &cb_odom);
-    ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva);
-    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, imu_cb);
-    ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>("/mavros/state", 10, uav_state_cb);
+    ros::Subscriber subOdom = nh.subscribe<nav_msgs::Odometry>("mavros/vision_pose/odom", 1, &cb_odom, ros::TransportHints().tcpNoDelay() );
+    ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva, ros::TransportHints().tcpNoDelay() );
+    ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, imu_cb, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>("/mavros/state", 10, uav_state_cb, ros::TransportHints().tcpNoDelay());
     
     /// publisher
     ros::Publisher pubPx4Attitude = nh.advertise<mavros_msgs::AttitudeTarget>("mavros/setpoint_raw/attitude", 1);
