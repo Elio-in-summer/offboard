@@ -75,7 +75,9 @@ std::queue<std::pair<ros::Time, double>> timed_thrust_;
 double rho2_ = 0.998;
 double P_;
 double thr2acc_;
+FILTER model_error_Filter(20);
 double thrust_model_error;
+double model_error_filtered;
 double est_a_norm;
 double thr_norm;
 double var;
@@ -128,6 +130,7 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     thr_norm = thr;
     est_a_norm = est_a(2);
     thrust_model_error = (est_a_norm - (K1 * thr_pre));
+    model_error_filtered = model_error_Filter.filter(thrust_model_error);
     // ! est_a_norm is actually acc measured
     // ! est_a_norm - thrust_model_error is the calculated acc
     var = gamma;
@@ -505,7 +508,7 @@ void px4AttitudeCtlPVA(double _currTime,
 
 
     msgDebugPid.P_.data = P_;
-    msgDebugPid.model_error.data = thrust_model_error;
+    msgDebugPid.model_error.data = model_error_filtered;
     msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
@@ -668,13 +671,17 @@ int main(int argc, char **argv)
         // {
         //     yaw_last = TargetYaw;
         // }
-        // ! here target pz < -50 is a flag to stop the drone, so we publish 0 thrust and continue to skip pid control
-        if(droneTargetPVA.pz < -50){
-            msgTargetAttitudeThrust.thrust = 0;
-            msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
-            msgTargetAttitudeThrust.header.stamp = ros::Time::now();
-            pubPx4Attitude.publish(msgTargetAttitudeThrust);
-            continue;
+        // ! here target pz < -90 is a flag to stop the drone, so we publish 0 thrust and continue to skip pid control
+        if(droneTargetPVA.pz < -90){
+            droneTargetPVA.pz = droneTargetPVA.pz + 100;
+            // !model error sudden change means hit the ground or platform, 2.7 is set by observation
+            if(fabs(model_error_filtered) > 2.7){
+                msgTargetAttitudeThrust.thrust = 0;
+                msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
+                msgTargetAttitudeThrust.header.stamp = ros::Time::now();
+                pubPx4Attitude.publish(msgTargetAttitudeThrust);
+                continue;
+            }
         }
         // 传入PX4串级PID程序解算，并发布控制话题
         px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);

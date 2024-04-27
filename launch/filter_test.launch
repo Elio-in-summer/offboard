@@ -1,0 +1,9 @@
+<launch>
+    <node name="filter_test" pkg="offboard" type="filter_test" output="screen">
+    </node>
+
+    <node name="plot" pkg="rqt_plot" type="rqt_plot" 
+    args="/model_error_filtered /model_error">
+    </node>
+
+</launch>

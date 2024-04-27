@@ -184,7 +184,7 @@ int main(int argc, char **argv)
                     pow(uav_cur_pose.pose.position.z - takeoff_pose.pose.position.z, 2));
 
                 // ! if the hover state is stable for 2s, then publish the is_stable flag
-                if (distance < 0.1) // TODO: 调整阈值
+                if (distance < 0.2) // TODO: 调整阈值
                 {
                     stable_count++;
                     std::cout << "stable_count: " << stable_count << std::endl;
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
                                       uav_cur_pose.pose.position.z);
                 }
 
-                if (stable_count > ctrl_rate * 2)
+                if (stable_count > ctrl_rate * 3)
                 {
                     std_msgs::Bool is_stable;
                     is_stable.data = true;
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
                     land_pose.pose.position.x = uav_cur_pose.pose.position.x;
                     land_pose.pose.position.y = uav_cur_pose.pose.position.y;
                     int stop_count = 0;                    
-                    while (uav_cur_pose.pose.position.z > 0.2)
+                    while (uav_cur_pose.pose.position.z > 0.3)
                     {
                         ros::spinOnce();
                         // TODO:下降速度 0.1m/s
@@ -278,29 +278,19 @@ int main(int argc, char **argv)
                         ctrl_loop.sleep();
                     }
                     // ! Actually, at this time uav have reached the ground, so let it disarmed as soon as possible
-                    int temp_count = 0;
                     while (uav_cur_state.armed){
-                        if(temp_count < ctrl_rate * 2){
-                            land_pose.pose.position.z = land_pose.pose.position.z - 1.0 / double(ctrl_rate);
-                            pose2pva(land_pose, pva_land);
-                            offb_setpva_pub.publish(pva_land);
-                            ROS_INFO_STREAM("\033[33m Land done \033[0m");
-                            temp_count++;
-                            ctrl_loop.sleep();
-                        }
-                        else{
-                            ROS_INFO_STREAM("\033[33m Stop All \033[0m");
-                            offboard::PosVelAcc pva_stop;
-                            // ! give an impossible position pz as the stop signal
-                            pva_stop.pz = -100.0; 
-                            offb_setpva_pub.publish(pva_stop);
-                            ctrl_loop.sleep();
+                        ROS_INFO_STREAM("\033[33m Stop All \033[0m");
+                        land_pose.pose.position.z = land_pose.pose.position.z - 1.0 / double(ctrl_rate);
+                        pose2pva(land_pose, pva_land);
+                        // ! give an impossible position pz as the stop signal
+                        pva_land.pz = pva_land.pz - 100.0;
+                        offb_setpva_pub.publish(pva_land);
+                        ctrl_loop.sleep();
                         }
                     }
                 }
                 
             }
-        }
         else
         { // If not arm
             ROS_INFO_STREAM_THROTTLE(1, " Waiting for Vehicle arm and Offboard cmd");

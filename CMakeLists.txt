@@ -70,3 +70,6 @@ target_link_libraries(attctl_perching ${catkin_LIBRARIES})
 
 add_executable(takeoff_landing src/takeoff_landing.cpp)
 target_link_libraries(takeoff_landing ${catkin_LIBRARIES})
+
+add_executable(filter_test src/filter_test.cpp include/controller/FILTER.cpp)
+target_link_libraries(filter_test ${catkin_LIBRARIES})
