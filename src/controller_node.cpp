@@ -675,8 +675,9 @@ int main(int argc, char **argv)
         // }
         // ! here target pz < -90 is a flag to stop the drone, so we publish 0 thrust and continue to skip pid control
         if(droneTargetPVA.pz < -90){
-            droneTargetPVA.pz = droneTargetPVA.pz + 100;
+            TargetPos << droneTargetPVA.px, droneTargetPVA.py, droneTargetPVA.pz + 100;
             // !model error sudden change means hit the ground or platform, 2.7 is set by observation
+            ROS_INFO("model_error_filtered: %f", model_error_filtered);
             if(fabs(model_error_filtered) > 2.7){
                 model_error_stop_count++;
             }
@@ -688,6 +689,11 @@ int main(int argc, char **argv)
                 msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
                 msgTargetAttitudeThrust.header.stamp = ros::Time::now();
                 pubPx4Attitude.publish(msgTargetAttitudeThrust);
+                timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
+                while (timed_thrust_.size() > 100)
+                {
+                    timed_thrust_.pop();
+                }
                 continue;
             }
         }
