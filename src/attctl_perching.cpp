@@ -177,13 +177,14 @@ int main(int argc, char **argv)
                 offb_setpva_pub.publish(pva_hover);
 
                 // calculate the distance between current pose and goal pose
-                double distance = sqrt(
-                    pow(uav_cur_pose.pose.position.x - takeoff_pose.pose.position.x, 2) +
-                    pow(uav_cur_pose.pose.position.y - takeoff_pose.pose.position.y, 2) +
-                    pow(uav_cur_pose.pose.position.z - takeoff_pose.pose.position.z, 2));
+                 // double distance = sqrt(
+                //     pow(uav_cur_pose.pose.position.x - takeoff_pose.pose.position.x, 2) +
+                //     pow(uav_cur_pose.pose.position.y - takeoff_pose.pose.position.y, 2) +
+                //     pow(uav_cur_pose.pose.position.z - takeoff_pose.pose.position.z, 2));
+                double distance = fabs(uav_cur_pose.pose.position.z - takeoff_pose.pose.position.z);
 
                 // ! if the hover state is stable for 2s, then publish the is_stable flag
-                if (distance < 0.2) // TODO: 调整阈值
+                if (distance < 0.1) // TODO: 调整阈值
                 {
                     stable_count++;
                     std::cout << "stable_count: " << stable_count << std::endl;
