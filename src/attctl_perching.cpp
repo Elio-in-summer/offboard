@@ -211,10 +211,10 @@ int main(int argc, char **argv)
                 // ! hover pose is updated to the current pose
                 hover_pose = uav_cur_pose;
             }
-            else if (execute_flag == 1 or execute_flag == 4)
+            else if (execute_flag > 0)
             {   
-                // ! execute_flag = 1: tracking perching trajectory
-                // ! execute_flag = 4: tracking post-perching trajectory
+                // ! execute_flag > 1: tracking perching trajectory, execute_flag - 1 is the replan index
+                // ! execute_flag = 1: tracking post-perching trajectory
                 // ! At this time, we won't send offb_setpva_pub by this node, but by the planner node
                 // ! We update the hover_pose to the current pose so once the planner node is down, the uav will hover
                 ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
