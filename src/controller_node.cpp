@@ -142,13 +142,13 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     // ! prevent for K1's jump over than 10%
 
     if (K1>K1_last*1.1){
-        K1=K1_last*1.1
+        K1=K1_last*1.1;
     }
     if(K1<K1_last*0.9){
-        K1=K1_last*0.9
+        K1=K1_last*0.9;
     }
     if(K1>30 or K1<15){
-        K1 = 20.577
+        K1 = 20.577;
     }
 
     P_ = (1 - K * thr_pre) * P_ / rho2_;

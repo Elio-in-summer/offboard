@@ -287,7 +287,7 @@ int main(int argc, char **argv)
                     }
                     // ! Actually, at this time uav have reached the ground, so let it disarmed as soon as possible
                     while (uav_cur_state.armed){
-                        ROS_INFO_STREAM("\033[33m Stop All \033[0m");
+                        // ROS_INFO_STREAM("\033[33m Stop All \033[0m");
                             land_pose.pose.position.z = land_pose.pose.position.z - 1.0 / double(ctrl_rate);
                             pose2pva(land_pose, pva_land);
                             // ! give an impossible position pz as the stop signal
