@@ -137,8 +137,20 @@ bool estimateThrustModel(const Eigen::Vector3d &est_a)
     // ! est_a_norm - thrust_model_error is the calculated acc
     var = gamma;
 
-
+    double K1_last = K1;
     K1 = K1 + K * (est_a_norm - thr_pre * K1);
+    // ! prevent for K1's jump over than 10%
+
+    if (K1>K1_last*1.1){
+        K1=K1_last*1.1
+    }
+    if(K1<K1_last*0.9){
+        K1=K1_last*0.9
+    }
+    if(K1>30 or K1<15){
+        K1 = 20.577
+    }
+
     P_ = (1 - K * thr_pre) * P_ / rho2_;
     //printf("%6.3f,%6.3f,%6.3f,%6.3f\n", thr2acc_, gamma, K, P_);
     //fflush(stdout);
@@ -514,7 +526,7 @@ void px4AttitudeCtlPVA(double _currTime,
     msgDebugPid.base_thrust.data = K1;
     msgDebugPid.est_a_norm.data = est_a_norm;
     msgDebugPid.thr_norm.data = thr_norm;
-    msgDebugPid.var.data = P_;
+    msgDebugPid.var.data = var;
 
     msgDebugPid.acc_in_w.x = acc_in_w(0);
     msgDebugPid.acc_in_w.y = acc_in_w(1);
