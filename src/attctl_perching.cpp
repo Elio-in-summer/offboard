@@ -187,7 +187,7 @@ int main(int argc, char **argv)
                 if (distance < 0.1) // TODO: 调整阈值
                 {
                     stable_count++;
-                    std::cout << "stable_count: " << stable_count << std::endl;
+                    // std::cout << "stable_count: " << stable_count << std::endl;
                 }
                 else
                 {
@@ -236,10 +236,10 @@ int main(int argc, char **argv)
                         pow(uav_cur_pose.pose.position.y - hover_pose.pose.position.y, 2) +
                         pow(uav_cur_pose.pose.position.z - hover_pose.pose.position.z, 2));
                     
-                    if (distance < 0.1)
+                    if (distance < 0.2)
                     {
                         stable_count++;
-                        std::cout << "stable_count: " << stable_count << std::endl;
+                        // std::cout << "stable_count: " << stable_count << std::endl;
                     }
                     else
                     {
