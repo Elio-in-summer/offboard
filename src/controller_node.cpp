@@ -5,6 +5,7 @@
 #include <mavros_msgs/State.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <std_msgs/Int8.h>
 #include <PosVelAcc.h>
 #include <DebugPid.h>
 #include "Eigen/Eigen"
@@ -17,6 +18,12 @@ using namespace Eigen;
 #define LOOPRATE 50
 #define GRAVITATIONAL_ACC 9.794 // TODO： The gravity of Shanghai
 
+// ! perch_state: 0 means during perching, 1 means perching fail, 2 means perching success, 3 means landing
+int perch_state = 0;
+std_msgs::Int8 perch_state_msg;
+// ! execute_flag: 0 means no plan, 1 means post plan, 2+ means replan count, -1 unkown, -2 means no more replan
+int execute_flag = 0;
+
 /**************************** Global Variable *******************************/
 mavros_msgs::State droneState; // 飞机状态
 geometry_msgs::PoseStamped pos_cur;
@@ -24,6 +31,9 @@ geometry_msgs::TwistStamped vel_cur;
 nav_msgs::Odometry odom_cur;
 offboard::PosVelAcc droneTargetPVA;
 mavros_msgs::State uav_cur_state;
+geometry_msgs::PoseStamped uav_in_arm_frame;
+
+
 Eigen::Vector3d imu_acc;
 Eigen::Vector3d imu_body_rate;
 Eigen::Quaterniond imu_quat;
@@ -249,6 +259,15 @@ void uav_state_cb(const mavros_msgs::State::ConstPtr &msg)
     uav_cur_state = *msg;
 }
 
+void execute_flag_cb(const std_msgs::Int8::ConstPtr &msg)
+{
+    execute_flag = msg->data;
+}
+
+void relative_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
+{
+    uav_in_arm_frame = *msg;
+}
 /**
  * 将欧拉角转化为四元数, 欧拉角的顺序为Yaw(z)-Pitch(y)-Roll(x)
  */
@@ -576,7 +595,7 @@ int main(int argc, char **argv)
     // reset thrust mapping
     resetThrustMapping();
 
-    /// subscriber
+    // *subscriber & publisher
     ros::Subscriber subState = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &cb_state, ros::TransportHints().tcpNoDelay() );
     // ros::Subscriber subLocalPos = nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 1, &cb_pos);
     // ros::Subscriber subLocalVel = nh.subscribe<geometry_msgs::TwistStamped>("/mavros/local_position/velocity_local", 1, &cb_vel);
@@ -584,10 +603,13 @@ int main(int argc, char **argv)
     ros::Subscriber subTargetPVA = nh.subscribe<offboard::PosVelAcc>("setpoint_pva", 1, &cb_target_pva, ros::TransportHints().tcpNoDelay() );
     ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, imu_cb, ros::TransportHints().tcpNoDelay());
     ros::Subscriber uav_state_sub = nh.subscribe<mavros_msgs::State>("/mavros/state", 10, uav_state_cb, ros::TransportHints().tcpNoDelay());
-    
-    /// publisher
+    ros::Subscriber execute_flag_sub = nh.subscribe<std_msgs::Int8>("/palnner_execute_flag", 1, execute_flag_cb, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber relative_pose_pub = nh.subscribe<geometry_msgs::PoseStamped>("/uav_in_arm_frame", 1, relative_pose_cb, ros::TransportHints().tcpNoDelay());
+
+
     ros::Publisher pubPx4Attitude = nh.advertise<mavros_msgs::AttitudeTarget>("mavros/setpoint_raw/attitude", 1);
     ros::Publisher pubDroneTargetEulerThrust = nh.advertise<geometry_msgs::PoseStamped>("controller/drone_target_euler_thrust", 1);
+    ros::Publisher perch_state_pub = nh.advertise<std_msgs::Int8>("/perch_state", 1);
     acc_pub = nh.advertise<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc_sg", 10);
     pubPID = nh.advertise<offboard::DebugPid>("controller/pid", 1);
 
@@ -657,11 +679,11 @@ int main(int argc, char **argv)
     ros::Time startTime = ros::Time::now();
     double relativeTime;
 
+    // ! main loop for control
     while (ros::ok() && droneState.connected)
     {
         ros::spinOnce();
         ROS_INFO_THROTTLE(1, "droneState: %s", droneState.mode.c_str());
-
         // 赋予当前位置速度，期望位置和yaw角度
         relativeTime = (odom_cur.header.stamp - startTime).toSec();
         odomCurrPos << odom_cur.pose.pose.position.x, odom_cur.pose.pose.position.y, odom_cur.pose.pose.position.z;
@@ -685,17 +707,91 @@ int main(int argc, char **argv)
         // {
         //     yaw_last = TargetYaw;
         // }
-        // ! here target pz < -90 is a flag to stop the drone, so we publish 0 thrust and continue to skip pid control
-        if(droneTargetPVA.pz < -90){
-            TargetPos << droneTargetPVA.px, droneTargetPVA.py, droneTargetPVA.pz + 100;
-            // !model error sudden change means hit the ground or platform, 2.7 is set by observation
-            ROS_INFO("model_error_filtered: %f", model_error_filtered);
-            if(fabs(model_error_filtered) > 2.7){
+        if(odomCurrPos(2) < 0.3){
+            if(fabs(model_error_filtered) > 2.7){   
                 model_error_stop_count++;
             }
             else{
                 model_error_stop_count = 0;
             }
+        }
+        // TODO: see if perching is success, or abnormal
+        // if uav_in_arm_frame have no data, to start post-plan, we set perching fail
+        if( uav_in_arm_frame.header.stamp.toSec() == 0 && execute_flag == -1){
+            perch_state = 3;
+        }
+        else{
+            double dis_xy = sqrt(pow(uav_in_arm_frame.pose.position.x, 2) + pow(uav_in_arm_frame.pose.position.y, 2));
+            double dis_z = uav_in_arm_frame.pose.position.z;
+            // ! Here the param offset should be set according to the real situation
+            if(dis_xy < 0.3 && 0 <dis_z < 0.1){
+                perch_state = 2;
+            }
+            else if (dis_z > 0.4){
+                perch_state = 3;
+            }
+            else{
+                perch_state = 1;          
+                }
+            }
+            
+        
+        // ! perch_state: 0 means during perching, 1 means perching fail, 2 means perching success, 3 means landing
+
+        switch (perch_state)
+        {
+        case 0:{
+            px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
+            pubPx4Attitude.publish(msgTargetAttitudeThrust);
+            timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
+            while (timed_thrust_.size() > 100)
+            {
+                timed_thrust_.pop();
+            }
+            break;
+        }
+        case 1:{
+            msgTargetAttitudeThrust.thrust = 0;
+            msgTargetAttitudeThrust.orientation.w = 1;
+            msgTargetAttitudeThrust.orientation.x = 0;
+            msgTargetAttitudeThrust.orientation.y = 0;
+            msgTargetAttitudeThrust.orientation.z = 0;
+            msgTargetAttitudeThrust.header.stamp = ros::Time::now();
+            pubPx4Attitude.publish(msgTargetAttitudeThrust);
+            break;
+        }
+
+        case 2:{
+            // Don't care p&v anymore, just care about acc, witch define altitude
+            Eigen::Vector3d b1c, b2c, b3c;
+            Eigen::Vector3d b2d(-sin(TargetYaw), cos(TargetYaw), 0);
+            Eigen::Vector3d TargetAcc_g;
+            TargetAcc_g = TargetAcc + Eigen::Vector3d(0, 0, 1) * GRAVITATIONAL_ACC;
+            if (TargetAcc_g.norm() > 1e-6)
+            {
+                b3c.noalias() = TargetAcc_g.normalized();
+            }
+            else
+            {
+                b3c.noalias() = Eigen::Vector3d(0, 0, 1);
+            }
+            b1c.noalias() = b2d.cross(b3c).normalized();
+            b2c.noalias() = b3c.cross(b1c).normalized();
+            Eigen::Matrix3d R_;
+            Eigen::Quaterniond qua_;
+            R_ << b1c, b2c, b3c;
+            qua_ = Eigen::Quaterniond(R_);
+            msgTargetAttitudeThrust.orientation.w = qua_.w();
+            msgTargetAttitudeThrust.orientation.x = qua_.x();
+            msgTargetAttitudeThrust.orientation.y = qua_.y();
+            msgTargetAttitudeThrust.orientation.z = qua_.z();
+            msgTargetAttitudeThrust.thrust = 0;
+            msgTargetAttitudeThrust.header.stamp = ros::Time::now();
+            pubPx4Attitude.publish(msgTargetAttitudeThrust);
+            break;
+        }
+
+        case 3:{
             if(model_error_stop_count > model_error_stop_count_max){
                 msgTargetAttitudeThrust.thrust = 0;
                 msgTargetAttitudeThrust.orientation = odom_cur.pose.pose.orientation;
@@ -706,24 +802,25 @@ int main(int argc, char **argv)
                 {
                     timed_thrust_.pop();
                 }
-                continue;
             }
+            else{
+                // 传入PX4串级PID程序解算，并发布控制话题
+                px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
+                pubPx4Attitude.publish(msgTargetAttitudeThrust);
+                timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
+                while (timed_thrust_.size() > 100)
+                {
+                    timed_thrust_.pop();
+                }
+            }
+            break;
         }
-        // 传入PX4串级PID程序解算，并发布控制话题
-        px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
-        pubPx4Attitude.publish(msgTargetAttitudeThrust);
-        timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
-        while (timed_thrust_.size() > 100)
-        {
-            timed_thrust_.pop();
+        default:
+            break;
         }
 
-        // 可视化欧拉角姿态与油门值
-        // msgDroneTargetEulerThrust.header.stamp = ros::Time::now();
-        // msgDroneTargetEulerThrust.pose.position.x = msgTargetAttitudeThrust.thrust;
-        // msgDroneTargetEulerThrust.pose.orientation = msgTargetAttitudeThrust.orientation;
-        // pubDroneTargetEulerThrust.publish(msgDroneTargetEulerThrust);
-
+        perch_state_msg.data = perch_state;
+        perch_state_pub.publish(perch_state_msg);
         rate.sleep();
     }
 

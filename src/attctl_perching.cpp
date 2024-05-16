@@ -29,6 +29,7 @@ bool repeat_path = false;
 bool has_goal = false;
 
 int execute_flag = 0;
+bool exit_post_plan = false;
 
 /**************************** Function Declaration and Definition *******************************/
 void pose2pva(geometry_msgs::PoseStamped pose, offboard::PosVelAcc &pva)
@@ -220,8 +221,11 @@ int main(int argc, char **argv)
                 // ! We update the hover_pose to the current pose so once the planner node is down, the uav will hover
                 ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
                 hover_pose = uav_cur_pose;
+                if(execute_flag == 1){
+                    exit_post_plan = true;
+                }
             }
-            else
+            else if (exit_post_plan)
             {
                 std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
                 // ! After the trajectory tracking, the uav will hover
@@ -288,10 +292,8 @@ int main(int argc, char **argv)
                     // ! Actually, at this time uav have reached the ground, so let it disarmed as soon as possible
                     while (uav_cur_state.armed){
                         // ROS_INFO_STREAM("\033[33m Stop All \033[0m");
-                            land_pose.pose.position.z = land_pose.pose.position.z - 1.0 / double(ctrl_rate);
+                            land_pose.pose.position.z = land_pose.pose.position.z - 0.1 / double(ctrl_rate);
                             pose2pva(land_pose, pva_land);
-                            // ! give an impossible position pz as the stop signal
-                            pva_land.pz = pva_land.pz - 100.0;
                             offb_setpva_pub.publish(pva_land);
                             ctrl_loop.sleep();
                         }
