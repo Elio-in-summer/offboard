@@ -29,7 +29,7 @@ bool repeat_path = false;
 bool has_goal = false;
 
 int execute_flag = 0;
-bool exit_post_plan = false;
+bool exist_post_plan = false;
 
 /**************************** Function Declaration and Definition *******************************/
 void pose2pva(geometry_msgs::PoseStamped pose, offboard::PosVelAcc &pva)
@@ -222,10 +222,10 @@ int main(int argc, char **argv)
                 ROS_INFO_STREAM_ONCE("\033[33m TRAJ! \033[0m");
                 hover_pose = uav_cur_pose;
                 if(execute_flag == 1){
-                    exit_post_plan = true;
+                    exist_post_plan = true;
                 }
             }
-            else if (exit_post_plan)
+            else if (exist_post_plan)
             {
                 std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
                 // ! After the trajectory tracking, the uav will hover

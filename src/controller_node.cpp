@@ -720,20 +720,20 @@ int main(int argc, char **argv)
         if( uav_in_arm_frame.header.stamp.toSec() == 0 && execute_flag == -1){
             perch_state = 3;
         }
-        else{
+        else if (uav_in_arm_frame.header.stamp.toSec() != 0 && perch_state != 2){
             double dis_xy = sqrt(pow(uav_in_arm_frame.pose.position.x, 2) + pow(uav_in_arm_frame.pose.position.y, 2));
             double dis_z = uav_in_arm_frame.pose.position.z;
             // ! Here the param offset should be set according to the real situation
             if(dis_xy < 0.3 && 0 <dis_z < 0.1){
                 perch_state = 2;
             }
-            else if (dis_z > 0.4){
+            else if (dis_z > 0.3 && execute_flag == -1){
                 perch_state = 3;
             }
-            else{
+            else if (execute_flag == -1){
                 perch_state = 1;          
-                }
             }
+        }
             
         
         // ! perch_state: 0 means during perching, 1 means perching fail, 2 means perching success, 3 means landing
@@ -752,10 +752,6 @@ int main(int argc, char **argv)
         }
         case 1:{
             msgTargetAttitudeThrust.thrust = 0;
-            msgTargetAttitudeThrust.orientation.w = 1;
-            msgTargetAttitudeThrust.orientation.x = 0;
-            msgTargetAttitudeThrust.orientation.y = 0;
-            msgTargetAttitudeThrust.orientation.z = 0;
             msgTargetAttitudeThrust.header.stamp = ros::Time::now();
             pubPx4Attitude.publish(msgTargetAttitudeThrust);
             break;
