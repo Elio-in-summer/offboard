@@ -751,9 +751,20 @@ int main(int argc, char **argv)
             break;
         }
         case 1:{
-            msgTargetAttitudeThrust.thrust = 0;
-            msgTargetAttitudeThrust.header.stamp = ros::Time::now();
-            pubPx4Attitude.publish(msgTargetAttitudeThrust);
+            if(uav_in_arm_frame.pose.position.z > -0.1){
+                px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
+                pubPx4Attitude.publish(msgTargetAttitudeThrust);
+                timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
+                while (timed_thrust_.size() > 100)
+                {
+                    timed_thrust_.pop();
+                }
+            }
+            else{
+                msgTargetAttitudeThrust.thrust = 0;
+                msgTargetAttitudeThrust.header.stamp = ros::Time::now();
+                pubPx4Attitude.publish(msgTargetAttitudeThrust);
+                }
             break;
         }
 

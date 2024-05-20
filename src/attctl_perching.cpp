@@ -29,6 +29,7 @@ bool repeat_path = false;
 bool has_goal = false;
 
 int execute_flag = 0;
+int perch_state = 0;
 bool exist_post_plan = false;
 
 /**************************** Function Declaration and Definition *******************************/
@@ -68,6 +69,11 @@ void goal_init_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     has_goal = true;
 }
 
+void per_state_cb(const std_msgs::Int8ConstPtr &msg)
+{
+    perch_state = msg->data;
+}
+
 int main(int argc, char **argv)
 {
     // ros init
@@ -83,6 +89,8 @@ int main(int argc, char **argv)
         "/palnner_execute_flag", 1, execute_flag_cb, ros::TransportHints().tcpNoDelay() );
     ros::Subscriber goal_pose_sub = nh.subscribe<geometry_msgs::PoseStamped>(
         "/goal_init_pose", 1, goal_init_pose_cb, ros::TransportHints().tcpNoDelay() );
+    ros::Subscriber per_state_sub = nh.subscribe<std_msgs::Int8>(
+        "/perch_state", 1, per_state_cb, ros::TransportHints().tcpNoDelay() );
     ros::Publisher offb_setpva_pub = nh.advertise<offboard::PosVelAcc>(
         "/setpoint_pva", 10);
     ros::Publisher is_stable_pub = nh.advertise<std_msgs::Bool>(
@@ -225,7 +233,7 @@ int main(int argc, char **argv)
                     exist_post_plan = true;
                 }
             }
-            else if (exist_post_plan)
+            else if (perch_state == 3)
             {
                 std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
                 // ! After the trajectory tracking, the uav will hover
