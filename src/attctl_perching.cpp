@@ -162,7 +162,7 @@ int main(int argc, char **argv)
                         climb_pose.pose.position.y = takeoff_pose.pose.position.y;
                         // TODO:上升速度 0.3m/s
                         climb_pose.pose.position.z = climb_pose.pose.position.z +
-                                                     0.3 / double(ctrl_rate);
+                                                     0.1 / double(ctrl_rate);
                         climb_pose.pose.position.z = std::min(climb_pose.pose.position.z,
                                                               takeoff_pose.pose.position.z);
                         pose2pva(climb_pose, pva_climb);
