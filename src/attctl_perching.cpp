@@ -235,7 +235,7 @@ int main(int argc, char **argv)
             }
             else if (perch_state == 3)
             {
-                std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
+                // std::cout << "hover_pose_z: " << hover_pose.pose.position.z << std::endl;
                 // ! After the trajectory tracking, the uav will hover
                 if (!ready_to_land){
                     ROS_INFO_STREAM_ONCE("\033[33m HOVERING Before Landing! \033[0m");
