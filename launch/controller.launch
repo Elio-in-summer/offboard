@@ -1,7 +1,6 @@
 <!-- This is just a template, it is not useful to run it alone. -->
 <launch>
-    <node name="controller_node" pkg="offboard" type="controller_node" output="screen">
-        <rosparam command="load" file="$(find offboard)/cfg/uav.yaml" />
-        <!-- <remap from="controller/pid" to = "controller/pid_cmp"/> -->
-    </node>
+  <node name="controller_node" pkg="offboard" type="controller_node" output="screen">
+		<rosparam command="load" file="$(find offboard)/cfg/uav.yaml" />
+	</node>
 </launch>

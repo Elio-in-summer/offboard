@@ -6,6 +6,7 @@
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <std_msgs/Int8.h>
+#include <std_msgs/Float64.h>
 #include <PosVelAcc.h>
 #include <DebugPid.h>
 #include "Eigen/Eigen"
@@ -612,6 +613,8 @@ int main(int argc, char **argv)
     ros::Publisher perch_state_pub = nh.advertise<std_msgs::Int8>("/perch_state", 1);
     acc_pub = nh.advertise<geometry_msgs::TwistStamped>("/hxl_uav/mocap/acc_sg", 10);
     pubPID = nh.advertise<offboard::DebugPid>("controller/pid", 1);
+    ros::Publisher tem_debug_1 = nh.advertise<std_msgs::Float64>("/set_x", 1);
+    ros::Publisher tem_debug_2 = nh.advertise<std_msgs::Float64>("/odom_x", 1);
 
     ROS_INFO("Subscriber: %s", subState.getTopic().c_str());
     // ROS_INFO("Subscriber: %s", subLocalPos.getTopic().c_str());
@@ -718,7 +721,7 @@ int main(int argc, char **argv)
         // TODO: see if perching is success, or abnormal
         // if uav_in_arm_frame have no data, to start post-plan, we set perching fail
         if( uav_in_arm_frame.header.stamp.toSec() == 0 && execute_flag == -1){
-            perch_state = 3;
+        perch_state = 3;
         }
         else if (uav_in_arm_frame.header.stamp.toSec() != 0 && perch_state != 2){
             double dis_xy = sqrt(pow(uav_in_arm_frame.pose.position.x, 2) + pow(uav_in_arm_frame.pose.position.y, 2));
@@ -737,11 +740,19 @@ int main(int argc, char **argv)
             
         
         // ! perch_state: 0 means during perching, 1 means perching fail, 2 means perching success, 3 means landing
-
+        // std::cout << "perch_state: " << perch_state << std::endl;
         switch (perch_state)
         {
         case 0:{
             px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
+            // * debug temp
+            // std_msgs::Float64 set_x;
+            // set_x.data = TargetPos.x();
+            // std::cout << "set_x: " << set_x.data << std::endl;
+            // tem_debug_1.publish(set_x);
+            // std_msgs::Float64 o_x;
+            // o_x.data = odomCurrPos.x();
+            // tem_debug_2.publish(o_x);
             pubPx4Attitude.publish(msgTargetAttitudeThrust);
             timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
             while (timed_thrust_.size() > 100)
