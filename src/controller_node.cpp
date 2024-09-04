@@ -727,8 +727,11 @@ int main(int argc, char **argv)
             double dis_xy = sqrt(pow(uav_in_arm_frame.pose.position.x, 2) + pow(uav_in_arm_frame.pose.position.y, 2));
             double dis_z = uav_in_arm_frame.pose.position.z;
             // ! Here the param offset should be set according to the real situation
-            if(dis_xy < 0.3 && -0.05 <dis_z < 0.1){
+            if(dis_xy < 0.2 && -0.05 <dis_z < 0.1){
                 perch_state = 2;
+            }
+            else if(dis_xy < 0.3 && dis_z < 0.3){
+                perch_state = 1;
             }
             else if (dis_z > 0.3 && execute_flag == -1){
                 perch_state = 3;
@@ -762,7 +765,7 @@ int main(int argc, char **argv)
             break;
         }
         case 1:{
-            if(uav_in_arm_frame.pose.position.z > -0.1){
+            if(uav_in_arm_frame.pose.position.z > -0.3){
                 px4AttitudeCtlPVA(relativeTime, odomCurrPos, odomCurrVel, TargetPos, TargetVel, TargetAcc, TargetYaw, droneState);
                 pubPx4Attitude.publish(msgTargetAttitudeThrust);
                 timed_thrust_.push(std::pair<ros::Time, double>(ros::Time::now(), msgTargetAttitudeThrust.thrust));
